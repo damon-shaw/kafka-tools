@@ -69,6 +69,15 @@ class Partition(BaseModel):
         broker.partitions[position].remove(self)
         self.replicas.remove(broker)
 
+        # The reference to this partition is stored in the broker based on its
+        # position in the replicas list.
+        # If there are brokers to the right of the one that is removed, then
+        # the brokers must be updated to reflect their new position as replicas.
+        if len(self.replicas[position:]) > 0:
+            for idx, other_broker in enumerate(self.replicas[position:]):
+                other_broker.partitions[position + idx + 1].remove(self)
+                self._add_broker_partition(position + idx, other_broker)
+
     def delete_replicas(self, target_count):
         """
         Assure that the partition has only the specified number of replicas, deleting any extras
